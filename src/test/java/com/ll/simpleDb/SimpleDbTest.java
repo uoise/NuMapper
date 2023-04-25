@@ -68,7 +68,6 @@ class SimpleDbTest {
         simpleDb.run("TRUNCATE article");
     }
 
-
     @Test
     @DisplayName("insert")
     void insert() {

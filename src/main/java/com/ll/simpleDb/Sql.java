@@ -8,8 +8,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Sql {
-    private Connection connection;
-    private StringBuilder queryString;
+    private final Connection connection;
+    private final StringBuilder queryString;
     private PreparedStatement pstmt;
 
     private Sql(Connection connection) {
@@ -38,14 +38,12 @@ public class Sql {
     public Sql append(String rawSql, Object arg) {
         String mappedSql = rawSql.trim().replace("?", "'" + arg + "'");
         this.queryString.append(' ').append(mappedSql);
-        System.out.println(queryString);
         return this;
     }
 
     public Sql append(String rawSql, Object... args) {
         String mappedSql = String.format(rawSql.trim().replace("?", "'%s'"), args);
         this.queryString.append(' ').append(mappedSql);
-        System.out.println(queryString);
         return this;
     }
 
@@ -55,7 +53,6 @@ public class Sql {
                 .map(o -> String.format("'%s'", o))
                 .collect(Collectors.joining(", ")));
         this.queryString.append(' ').append(mappedSql);
-        System.out.println(queryString);
         return this;
     }
 
