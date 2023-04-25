@@ -157,6 +157,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT LONG")
     void selectLong() {
         Sql sql = simpleDb.genSql();
         /*
@@ -175,6 +176,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT STRING")
     void selectString() {
         Sql sql = simpleDb.genSql();
         /*
@@ -193,6 +195,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT ROW BY MAP")
     void selectRow() {
         Sql sql = simpleDb.genSql();
         /*
@@ -213,6 +216,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT ROW BY OBJECT")
     void selectArticle() {
         Sql sql = simpleDb.genSql();
         /*
@@ -231,6 +235,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT ROWS BY OBJECTS")
     void selectArticles() {
         Sql sql = simpleDb.genSql();
         /*
@@ -258,6 +263,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT LONG")
     void selectBind() {
         Sql sql = simpleDb.genSql();
         /*
@@ -278,6 +284,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT IN CLAUSE")
     void selectIn() {
         Sql sql = simpleDb.genSql();
         /*
@@ -296,6 +303,7 @@ class SimpleDbTest {
     }
 
     @Test
+    @DisplayName("SELECT IDS BY LONG")
     void selectOrderByField() {
         List<Long> ids = Arrays.asList(2L, 3L, 1L);
 
