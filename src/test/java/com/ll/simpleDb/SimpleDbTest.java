@@ -1,10 +1,7 @@
 package com.ll.simpleDb;
 
 import com.ll.Article;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.*;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -45,7 +42,7 @@ class SimpleDbTest {
                     modifiedDate DATETIME NOT NULL,
                     title VARCHAR(100) NOT NULL,
                     `body` TEXT NOT NULL,
-                    isBlind BIT(1) NOT NULL DEFAULT(0)
+                    isBlind BIT(1) NOT NULL DEFAULT 0
                 )
                 """);
     }
@@ -71,8 +68,10 @@ class SimpleDbTest {
         simpleDb.run("TRUNCATE article");
     }
 
+
     @Test
-    public void insert() {
+    @DisplayName("insert")
+    void insert() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -94,7 +93,8 @@ class SimpleDbTest {
     }
 
     @Test
-    public void update() {
+    @DisplayName("update")
+    void update() {
         Sql sql = simpleDb.genSql();
 
         // id가 0, 1, 2, 3인 글 수정
@@ -118,7 +118,8 @@ class SimpleDbTest {
     }
 
     @Test
-    public void delete() {
+    @DisplayName("delete")
+    void delete() {
         Sql sql = simpleDb.genSql();
 
         // id가 0, 1, 3인 글 삭제
@@ -139,7 +140,8 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectDatetime() {
+    @DisplayName("select Datetime")
+    void selectDatetime() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -155,7 +157,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectLong() {
+    void selectLong() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -165,7 +167,7 @@ class SimpleDbTest {
         */
         sql.append("SELECT id")
                 .append("FROM article")
-                .append("WHERE id = 1");
+                .append("WHERE id = ?", 1);
 
         Long count = sql.selectLong();
 
@@ -173,7 +175,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectString() {
+    void selectString() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -191,7 +193,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectRow() {
+    void selectRow() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -211,7 +213,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectArticle() {
+    void selectArticle() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -229,7 +231,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectArticles() {
+    void selectArticles() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -256,7 +258,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectBind() {
+    void selectBind() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -276,7 +278,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectIn() {
+    void selectIn() {
         Sql sql = simpleDb.genSql();
         /*
         == rawSql ==
@@ -294,7 +296,7 @@ class SimpleDbTest {
     }
 
     @Test
-    public void selectOrderByField() {
+    void selectOrderByField() {
         List<Long> ids = Arrays.asList(2L, 3L, 1L);
 
         Sql sql = simpleDb.genSql();
