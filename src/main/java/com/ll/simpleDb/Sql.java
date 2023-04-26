@@ -7,10 +7,11 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class Sql {
+public class Sql implements AutoCloseable {
     private final Connection connection;
     private final StringBuilder queryString;
     private PreparedStatement pstmt;
+    private ResultSet rs;
 
     private Sql(Connection connection) {
         this.connection = connection;
@@ -20,6 +21,13 @@ public class Sql {
     private Sql(Sql sql) {
         this.connection = sql.connection;
         this.queryString = sql.queryString;
+        this.pstmt = sql.pstmt;
+        this.rs = sql.rs;
+    }
+
+    @Override
+    public void close() throws SQLException {
+        pstmt.close();
     }
 
     static Sql of(Connection connection) {
@@ -57,22 +65,15 @@ public class Sql {
     }
 
     public long insert() {
-        System.out.println(queryString);
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim(), Statement.RETURN_GENERATED_KEYS);
             pstmt.executeUpdate();
-            ResultSet rs = pstmt.getGeneratedKeys();
+            rs = pstmt.getGeneratedKeys();
             if (rs.next()) return rs.getInt(1);
             return -1;
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -84,12 +85,6 @@ public class Sql {
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -101,66 +96,42 @@ public class Sql {
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
     public LocalDateTime selectDatetime() {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
             if (rs.next()) return rs.getTimestamp(1).toLocalDateTime();
             return null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
     public Long selectLong() {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
             if (rs.next()) return rs.getLong(1);
             return null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
     public String selectString() {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
             if (rs.next()) return rs.getString(1);
             return null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
@@ -168,7 +139,7 @@ public class Sql {
         Map<String, Object> ret = new HashMap<>();
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
             ResultSetMetaData metaData = rs.getMetaData();
             while (rs.next()) {
                 for (int i = 0; i < metaData.getColumnCount(); i++) {
@@ -180,21 +151,15 @@ public class Sql {
         } catch (Exception e) {
             e.printStackTrace();
             return ret;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
     public <R> R selectRow(Class<R> clazz) {
         try {
-            Constructor<?> constructor = Arrays.stream(clazz.getConstructors()).findFirst().orElse(null);
+            Constructor<?> constructor = clazz.getConstructor();
             R tmp = (R) constructor.newInstance();
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
             Field[] fields = clazz.getDeclaredFields();
             while (rs.next()) {
                 for (Field f : fields) {
@@ -207,21 +172,15 @@ public class Sql {
         } catch (Exception e) {
             e.printStackTrace();
             return null;
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
     }
 
     public <R> List<R> selectRows(Class<R> clazz) {
         List<R> ret = new ArrayList<>();
         try {
-            Constructor<?> constructor = Arrays.stream(clazz.getConstructors()).findFirst().orElse(null);
+            Constructor<?> constructor = clazz.getConstructor();
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
             Field[] fields = clazz.getDeclaredFields();
             while (rs.next()) {
                 R tmp = (R) constructor.newInstance();
@@ -234,12 +193,6 @@ public class Sql {
             }
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
         return ret;
     }
@@ -248,16 +201,10 @@ public class Sql {
         List<Long> ret = new ArrayList<>();
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
             while (rs.next()) ret.add(rs.getLong(1));
         } catch (Exception e) {
             e.printStackTrace();
-        } finally {
-            try {
-                pstmt.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
         }
         return ret;
     }
