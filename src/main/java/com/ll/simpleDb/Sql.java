@@ -47,20 +47,9 @@ public class Sql implements AutoCloseable {
         return new Sql(sql);
     }
 
-    public Sql append(String rawSql) {
-        this.queryString.append(' ').append(rawSql.trim());
-        return this;
-    }
-
-    public Sql append(String rawSql, Object arg) {
-        String mappedSql = rawSql.trim().replace("?", "'" + arg + "'");
-        this.queryString.append(' ').append(mappedSql);
-        return this;
-    }
-
     public Sql append(String rawSql, Object... args) {
-        String mappedSql = String.format(rawSql.trim().replace("?", "'%s'"), args);
-        this.queryString.append(' ').append(mappedSql);
+        for (Object o : args) rawSql = rawSql.replaceFirst("[?]", "'" + o + "'");
+        this.queryString.append(' ').append(rawSql);
         return this;
     }
 
@@ -89,8 +78,7 @@ public class Sql implements AutoCloseable {
     public long update() {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            pstmt.executeUpdate();
-            return pstmt.getUpdateCount();
+            return pstmt.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
@@ -100,8 +88,7 @@ public class Sql implements AutoCloseable {
     public long delete() {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
-            pstmt.executeUpdate();
-            return pstmt.getUpdateCount();
+            return pstmt.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
@@ -112,23 +99,21 @@ public class Sql implements AutoCloseable {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
             rs = pstmt.executeQuery();
-            if (rs.next()) return rs.getTimestamp(1).toLocalDateTime();
-            return null;
+            return rs.next() ? rs.getTimestamp(1).toLocalDateTime() : null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    public Long selectLong() {
+    public long selectLong() {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
             rs = pstmt.executeQuery();
-            if (rs.next()) return rs.getLong(1);
-            return null;
+            return rs.next() ? rs.getLong(1) : -1;
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return -1;
         }
     }
 
@@ -136,8 +121,7 @@ public class Sql implements AutoCloseable {
         try {
             pstmt = connection.prepareStatement(queryString.toString().trim());
             rs = pstmt.executeQuery();
-            if (rs.next()) return rs.getString(1);
-            return null;
+            return rs.next() ? rs.getString(1) : null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -159,7 +143,7 @@ public class Sql implements AutoCloseable {
             return ret;
         } catch (Exception e) {
             e.printStackTrace();
-            return ret;
+            return Collections.emptyMap();
         }
     }
 
