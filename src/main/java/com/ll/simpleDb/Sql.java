@@ -8,28 +8,28 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Sql implements AutoCloseable {
-    private final Connection connection;
+    private final DBConnectionPool dbConnectionPool;
+    private Connection connection;
     private final StringBuilder queryString;
     private PreparedStatement stmt;
     private ResultSet rs;
 
-    private Sql(Connection connection) {
-        this.connection = connection;
+    private Sql(DBConnectionPool dbConnectionPool) {
+        this.dbConnectionPool = dbConnectionPool;
         this.queryString = new StringBuilder();
     }
 
-    private Sql(Sql sql) {
-        this.connection = sql.connection;
-        this.queryString = sql.queryString;
-        this.stmt = sql.stmt;
-        this.rs = sql.rs;
+    private void setConnection() {
+        connection = dbConnectionPool.get();
     }
 
     private PreparedStatement getStmt() throws SQLException {
+        setConnection();
         return connection.prepareStatement(queryString.toString().trim());
     }
 
     private PreparedStatement getStmt(final int statementConstant) throws SQLException {
+        setConnection();
         return connection.prepareStatement(queryString.toString().trim(), statementConstant);
     }
 
@@ -42,17 +42,16 @@ public class Sql implements AutoCloseable {
             if (rs != null) {
                 rs.close();
             }
+            if (connection != null) {
+                dbConnectionPool.release(connection);
+            }
         } catch (SQLException e) {
-            throw new RuntimeException("Error closing Sql object", e);
+            throw new SQLRuntimeException("Error closing Sql object", e);
         }
     }
 
-    static Sql of(Connection connection) {
-        return new Sql(connection);
-    }
-
-    static Sql of(Sql sql) {
-        return new Sql(sql);
+    public static Sql of(DBConnectionPool dbConnectionPool) {
+        return new Sql(dbConnectionPool);
     }
 
     public Sql append(String rawSql, Object... args) {
@@ -165,7 +164,6 @@ public class Sql implements AutoCloseable {
             while (rs.next()) {
                 for (Field f : fields) {
                     f.setAccessible(true);
-                    System.out.println(rs.getObject(f.getName()));
                     f.set(ret, rs.getObject(f.getName()));
                 }
             }
@@ -187,7 +185,6 @@ public class Sql implements AutoCloseable {
                 R obj = (R) constructor.newInstance();
                 for (Field f : fields) {
                     f.setAccessible(true);
-                    System.out.println(rs.getObject(f.getName()));
                     f.set(obj, rs.getObject(f.getName()));
                 }
                 ret.add(obj);
