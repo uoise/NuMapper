@@ -26,8 +26,17 @@ public class Sql implements AutoCloseable {
     }
 
     @Override
-    public void close() throws SQLException {
-        pstmt.close();
+    public void close() {
+        try {
+            if (pstmt != null) {
+                pstmt.close();
+            }
+            if (rs != null) {
+                rs.close();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error closing Sql object", e);
+        }
     }
 
     static Sql of(Connection connection) {
