@@ -23,7 +23,7 @@ public class Sql {
 
     private void setConnection() {
         try {
-            connection = dbConnectionPool.get();
+            connection = dbConnectionPool.getConnection();
         } catch (SQLException | InterruptedException e) {
             throw new SQLRuntimeException("setConnection fail", e);
         }
@@ -31,8 +31,8 @@ public class Sql {
 
     private PreparedStatement getStmt() {
         if (devMode) System.out.println(queryString.toString().trim());
+        setConnection();
         try {
-            setConnection();
             PreparedStatement pStmt = connection.prepareStatement(queryString.toString().trim());
             pStmt.setQueryTimeout(queryTimeout);
             return pStmt;
@@ -44,8 +44,8 @@ public class Sql {
 
     private PreparedStatement getStmt(final int statementConstant) {
         if (devMode) System.out.println(queryString.toString().trim());
+        setConnection();
         try {
-            setConnection();
             PreparedStatement pStmt = connection.prepareStatement(queryString.toString().trim(), statementConstant);
             pStmt.setQueryTimeout(queryTimeout);
             return pStmt;
@@ -83,7 +83,7 @@ public class Sql {
             e.printStackTrace();
             return -1;
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -94,7 +94,7 @@ public class Sql {
             e.printStackTrace();
             return -1;
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -105,7 +105,7 @@ public class Sql {
             e.printStackTrace();
             return -1;
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -117,7 +117,7 @@ public class Sql {
             e.printStackTrace();
             return null;
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -129,7 +129,7 @@ public class Sql {
             e.printStackTrace();
             return -1;
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -141,7 +141,7 @@ public class Sql {
             e.printStackTrace();
             return null;
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -161,7 +161,7 @@ public class Sql {
             e.printStackTrace();
             return Collections.emptyMap();
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -182,7 +182,7 @@ public class Sql {
             e.printStackTrace();
             return null;
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -205,7 +205,7 @@ public class Sql {
             e.printStackTrace();
             return Collections.emptyList();
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -219,7 +219,7 @@ public class Sql {
             e.printStackTrace();
             return Collections.emptyList();
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 }
