@@ -19,6 +19,16 @@ public class SimpleDb {
         HOST_FORMAT = "jdbc:mysql://%s:%s/%s";
     }
 
+    private void setConnection() {
+        try {
+            connection = dbConnectionPool.getConnection();
+        } catch (SQLException | InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            dbConnectionPool.releaseConnection(connection);
+        }
+    }
+
     public SimpleDb(String host, String id, String password, String database) {
         dbConnectionPool = new DBConnectionPool(HOST_FORMAT.formatted(host, PORT, database), id, password);
         queryTimeout = DEFAULT_QUERY_TIMEOUT;
@@ -34,20 +44,14 @@ public class SimpleDb {
     }
 
     public void run(String queryString, Object... args) {
-        try {
-            connection = dbConnectionPool.getConnection();
-            try (PreparedStatement pStmt = connection.prepareStatement(queryString)) {
-                pStmt.setQueryTimeout(queryTimeout);
-                int idx = 0;
-                for (Object o : args) pStmt.setObject(++idx, o);
-                pStmt.executeUpdate();
-            } catch (SQLException e) {
-                System.out.println("SQL Exception: Failed to get Statement");
-            }
-        } catch (SQLException | InterruptedException e) {
-            throw new RuntimeException(e);
-        } finally {
-            dbConnectionPool.releaseConnection(connection);
+        setConnection();
+        try (PreparedStatement pStmt = connection.prepareStatement(queryString)) {
+            pStmt.setQueryTimeout(queryTimeout);
+            int idx = 0;
+            for (Object o : args) pStmt.setObject(++idx, o);
+            pStmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("SQL Exception: Failed to get Statement");
         }
     }
 
