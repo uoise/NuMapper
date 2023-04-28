@@ -21,7 +21,7 @@ public class DBConnectionPool {
     private static final int DEFAULT_MIN_POOL_SIZE = 5;
     private static final int DEFAULT_MAX_POOL_SIZE = 10;
     private static final long DEFAULT_WAIT_TIMEOUT = 1000;
-    private static final long DEFAULT_MAX_IDLE_TIME = 30000;
+    private static final long DEFAULT_MAX_IDLE_TIME = 10000;
     private final String url;
     private final String username;
     private final String password;
@@ -100,17 +100,24 @@ public class DBConnectionPool {
     }
 
     public Connection getConnection() throws SQLException, InterruptedException {
-        ConnectionInfo connectionInfo;
-        synchronized (this) {
-            connectionInfo = getConnectionFromPool();
-            if (connectionInfo == null) {
-                connectionInfo = waitForConnection(waitTimeout);
+        ConnectionInfo connectionInfo = null;
+        while (connectionInfo == null) {
+            synchronized (this) {
+                connectionInfo = getConnectionFromPool();
+                if (connectionInfo == null) {
+                    try {
+                        connectionInfo = waitForConnection(waitTimeout);
+                    } catch (SQLTimeoutException e) {
+                        // ignore exception
+                    }
+                }
             }
         }
 
         long idleTime = System.currentTimeMillis() - connectionInfo.timestamp;
         if (idleTime > maxIdleTime) {
             closeConnection(connectionInfo.connection);
+            System.out.println("connection expired");
             return getConnection();
         }
 
