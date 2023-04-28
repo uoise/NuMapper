@@ -18,10 +18,10 @@ public class DBConnectionPool {
         }
     }
 
-    private static final int DEFAULT_MIN_POOL_SIZE = 1;
-    private static final int DEFAULT_MAX_POOL_SIZE = 2;
-    private static final long DEFAULT_WAIT_TIMEOUT = 1;
-    private static final long DEFAULT_MAX_IDLE_TIME = 30;
+    private static final int DEFAULT_MIN_POOL_SIZE = 5;
+    private static final int DEFAULT_MAX_POOL_SIZE = 10;
+    private static final long DEFAULT_WAIT_TIMEOUT = 1000;
+    private static final long DEFAULT_MAX_IDLE_TIME = 30000;
     private final String url;
     private final String username;
     private final String password;
