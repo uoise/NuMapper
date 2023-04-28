@@ -44,15 +44,6 @@ public class DBConnectionPool {
         activeConnectionCount = 0;
         availableConnections = new LinkedList<>();
         usedConnections = new HashSet<>();
-
-        initializePool();
-    }
-
-    private synchronized void initializePool() {
-        while (activeConnectionCount < minPoolSize) {
-            availableConnections.add(new ConnectionInfo(createConnection(), System.currentTimeMillis()));
-            activeConnectionCount++;
-        }
     }
 
     private Connection createConnection() {
@@ -97,7 +88,6 @@ public class DBConnectionPool {
         usedConnections.add(connection);
         return connection;
     }
-
 
     public synchronized void release(Connection connection) {
         usedConnections.remove(connection);
