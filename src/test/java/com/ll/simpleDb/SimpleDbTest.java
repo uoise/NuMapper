@@ -31,6 +31,12 @@ class SimpleDbTest {
         makeArticleTestData();
     }
 
+    @AfterAll
+    public void afterAll(){
+        simpleDb.close();
+        System.out.println("::: SimpleDB Test Done :::");
+    }
+
     private void createArticleTable() {
         simpleDb.run("DROP TABLE IF EXISTS article");
 

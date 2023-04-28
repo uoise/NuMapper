@@ -7,51 +7,56 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class Sql implements AutoCloseable {
+public class Sql {
     private final DBConnectionPool dbConnectionPool;
+    private final int queryTimeout;
+    private final boolean devMode;
     private Connection connection;
     private final StringBuilder queryString;
-    private PreparedStatement stmt;
-    private ResultSet rs;
 
-    private Sql(DBConnectionPool dbConnectionPool) {
+    private Sql(DBConnectionPool dbConnectionPool, int queryTimeout, boolean devMode) {
         this.dbConnectionPool = dbConnectionPool;
+        this.queryTimeout = queryTimeout;
         this.queryString = new StringBuilder();
+        this.devMode = devMode;
     }
 
     private void setConnection() {
-        connection = dbConnectionPool.get();
-    }
-
-    private PreparedStatement getStmt() throws SQLException {
-        setConnection();
-        return connection.prepareStatement(queryString.toString().trim());
-    }
-
-    private PreparedStatement getStmt(final int statementConstant) throws SQLException {
-        setConnection();
-        return connection.prepareStatement(queryString.toString().trim(), statementConstant);
-    }
-
-    @Override
-    public void close() {
         try {
-            if (stmt != null) {
-                stmt.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-            if (connection != null) {
-                dbConnectionPool.release(connection);
-            }
-        } catch (SQLException e) {
-            throw new SQLRuntimeException("Error closing Sql object", e);
+            connection = dbConnectionPool.get();
+        } catch (SQLException | InterruptedException e) {
+            throw new SQLRuntimeException("setConnection fail", e);
         }
     }
 
-    public static Sql of(DBConnectionPool dbConnectionPool) {
-        return new Sql(dbConnectionPool);
+    private PreparedStatement getStmt() {
+        if (devMode) System.out.println(queryString.toString().trim());
+        try {
+            setConnection();
+            PreparedStatement pStmt = connection.prepareStatement(queryString.toString().trim());
+            pStmt.setQueryTimeout(queryTimeout);
+            return pStmt;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private PreparedStatement getStmt(final int statementConstant) {
+        if (devMode) System.out.println(queryString.toString().trim());
+        try {
+            setConnection();
+            PreparedStatement pStmt = connection.prepareStatement(queryString.toString().trim(), statementConstant);
+            pStmt.setQueryTimeout(queryTimeout);
+            return pStmt;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Sql of(DBConnectionPool dbConnectionPool, int queryTimeout, boolean devMode) {
+        return new Sql(dbConnectionPool, queryTimeout, devMode);
     }
 
     public Sql append(String rawSql, Object... args) {
@@ -70,76 +75,80 @@ public class Sql implements AutoCloseable {
     }
 
     public long insert() {
-        try {
-            stmt = getStmt(Statement.RETURN_GENERATED_KEYS);
+        try (PreparedStatement stmt = getStmt(Statement.RETURN_GENERATED_KEYS)) {
             stmt.executeUpdate();
-            rs = stmt.getGeneratedKeys();
-            if (rs.next()) return rs.getInt(1);
-            return -1;
-        } catch (Exception e) {
+            ResultSet rs = stmt.getGeneratedKeys();
+            return rs.next() ? rs.getInt(1) : -1;
+        } catch (SQLException e) {
             e.printStackTrace();
             return -1;
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public long update() {
-        try {
-            stmt = getStmt();
+        try (PreparedStatement stmt = getStmt()) {
             return stmt.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public long delete() {
-        try {
-            stmt = getStmt();
+        try (PreparedStatement stmt = getStmt()) {
             return stmt.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public LocalDateTime selectDatetime() {
-        try {
-            stmt = getStmt();
-            rs = stmt.executeQuery();
+        try (PreparedStatement stmt = getStmt()) {
+            ResultSet rs = stmt.executeQuery();
             return rs.next() ? rs.getTimestamp(1).toLocalDateTime() : null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public long selectLong() {
-        try {
-            stmt = getStmt();
-            rs = stmt.executeQuery();
+        try (PreparedStatement stmt = getStmt()) {
+            ResultSet rs = stmt.executeQuery();
             return rs.next() ? rs.getLong(1) : -1;
         } catch (Exception e) {
             e.printStackTrace();
             return -1;
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public String selectString() {
-        try {
-            stmt = getStmt();
-            rs = stmt.executeQuery();
+        try (PreparedStatement stmt = getStmt()) {
+            ResultSet rs = stmt.executeQuery();
             return rs.next() ? rs.getString(1) : null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public Map<String, Object> selectRow() {
         Map<String, Object> ret = new HashMap<>();
-        try {
-            stmt = getStmt();
-            rs = stmt.executeQuery();
+        try (PreparedStatement stmt = getStmt()) {
+            ResultSet rs = stmt.executeQuery();
             ResultSetMetaData metaData = rs.getMetaData();
             while (rs.next()) {
                 for (int i = 0; i < metaData.getColumnCount(); i++) {
@@ -151,15 +160,16 @@ public class Sql implements AutoCloseable {
         } catch (Exception e) {
             e.printStackTrace();
             return Collections.emptyMap();
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public <R> R selectRow(Class<R> clazz) {
-        try {
+        try (PreparedStatement stmt = getStmt()) {
             Constructor<?> constructor = clazz.getConstructor();
             R ret = (R) constructor.newInstance();
-            stmt = getStmt();
-            rs = stmt.executeQuery();
+            ResultSet rs = stmt.executeQuery();
             Field[] fields = clazz.getDeclaredFields();
             while (rs.next()) {
                 for (Field f : fields) {
@@ -171,15 +181,16 @@ public class Sql implements AutoCloseable {
         } catch (Exception e) {
             e.printStackTrace();
             return null;
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public <R> List<R> selectRows(Class<R> clazz) {
         List<R> ret = new ArrayList<>();
-        try {
+        try (PreparedStatement stmt = getStmt()) {
             Constructor<?> constructor = clazz.getConstructor();
-            stmt = getStmt();
-            rs = stmt.executeQuery();
+            ResultSet rs = stmt.executeQuery();
             Field[] fields = clazz.getDeclaredFields();
             while (rs.next()) {
                 R obj = (R) constructor.newInstance();
@@ -193,19 +204,22 @@ public class Sql implements AutoCloseable {
         } catch (Exception e) {
             e.printStackTrace();
             return Collections.emptyList();
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 
     public List<Long> selectLongs() {
         List<Long> ret = new ArrayList<>();
-        try {
-            stmt = getStmt();
-            rs = stmt.executeQuery();
+        try (PreparedStatement stmt = getStmt()) {
+            ResultSet rs = stmt.executeQuery();
             while (rs.next()) ret.add(rs.getLong(1));
             return ret;
         } catch (Exception e) {
             e.printStackTrace();
             return Collections.emptyList();
+        } finally {
+            dbConnectionPool.release(connection);
         }
     }
 }

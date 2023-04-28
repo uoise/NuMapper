@@ -3,87 +3,102 @@ package com.ll.simpleDb;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.SQLTimeoutException;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class DBConnectionPool {
-    private static final int DEFAULT_INITIAL_POOL_SIZE = 5;
+    private static final int DEFAULT_MIN_POOL_SIZE = 1;
+    private static final int DEFAULT_MAX_POOL_SIZE = 2;
+    private static final int DEFAULT_WAIT_TIMEOUT = 5;
+    private static final int DEFAULT_MAX_IDLE_TIME = 30;
     private final String url;
     private final String username;
     private final String password;
-    private final int initialPoolSize;
-    private final long connectionTimeout;
-    private final List<Connection> availableConnections;
-    private final List<Connection> usedConnections;
+    private final int minPoolSize;
+    private final int maxPoolSize;
+    private final long waitTimeout;
+    private final long maxIdleTime;
+    private final Queue<Connection> availableConnections;
+    private final Set<Connection> usedConnections;
+    private int activeConnectionCount;
 
     public DBConnectionPool(String url, String username, String password) {
-        this(url, username, password, DEFAULT_INITIAL_POOL_SIZE, TimeUnit.SECONDS.toMillis(1));
+        this(url, username, password, DEFAULT_MIN_POOL_SIZE, DEFAULT_MAX_POOL_SIZE, DEFAULT_WAIT_TIMEOUT, DEFAULT_MAX_IDLE_TIME);
     }
 
-    public DBConnectionPool(String url, String username, String password, int initialPoolSize, long connectionTimeout) {
+    public DBConnectionPool(String url, String username, String password, int minPoolSize, int maxPoolSize, int waitTimeout, int maxIdleTime) {
         this.url = url;
         this.username = username;
         this.password = password;
-        this.initialPoolSize = initialPoolSize;
-        this.connectionTimeout = connectionTimeout;
-        this.availableConnections = new ArrayList<>(initialPoolSize);
-        this.usedConnections = new ArrayList<>();
-        initializeConnections();
+        this.minPoolSize = minPoolSize;
+        this.maxPoolSize = maxPoolSize;
+        this.waitTimeout = TimeUnit.SECONDS.toSeconds(waitTimeout);
+        this.maxIdleTime = TimeUnit.SECONDS.toSeconds(maxIdleTime);
+        activeConnectionCount = 0;
+        availableConnections = new LinkedList<>();
+        usedConnections = new HashSet<>();
+
+        initializePool();
     }
 
-    private void initializeConnections() {
-        for (int i = 0; i < initialPoolSize; i++) {
-            availableConnections.add(createConnection());
+    private synchronized void initializePool() {
+        while (activeConnectionCount < minPoolSize) {
+            Connection connection = createConnection();
+            availableConnections.add(connection);
+            activeConnectionCount++;
         }
     }
 
     private Connection createConnection() {
         try {
-            return DriverManager.getConnection(url, username, password);
+            Connection connection = DriverManager.getConnection(url, username, password);
+            usedConnections.add(connection);
+            return connection;
         } catch (SQLException e) {
-            throw new SQLRuntimeException("Error creating connection", e);
+            throw new SQLRuntimeException("Create connection failed", e);
         }
     }
 
-    public synchronized Connection get() {
-        Connection connection;
-        if (availableConnections.isEmpty()) {
-            connection = createConnection();
-        } else {
-            connection = availableConnections.remove(availableConnections.size() - 1);
-            if (!isValid(connection)) {
-                closeConnection(connection);
-                connection = createConnection();
+    public synchronized Connection get() throws SQLException, InterruptedException {
+        if (availableConnections.isEmpty() && activeConnectionCount < maxPoolSize) {
+            Connection connection = createConnection();
+            availableConnections.add(connection);
+            activeConnectionCount++;
+        }
+
+        long start = System.currentTimeMillis();
+        long remaining = waitTimeout;
+
+        while (availableConnections.isEmpty()) {
+            wait(remaining);
+
+            remaining = waitTimeout - (System.currentTimeMillis() - start);
+            if (remaining <= 0) {
+                throw new SQLTimeoutException("Timeout while waiting for a connection from the pool");
             }
         }
+
+        Connection connection = availableConnections.poll();
         usedConnections.add(connection);
         return connection;
     }
 
-    private boolean isValid(Connection connection) {
-        try {
-            return !connection.isClosed() && connection.isValid((int) connectionTimeout);
-        } catch (SQLException e) {
-            return false;
-        }
+
+    public synchronized void release(Connection connection) {
+        usedConnections.remove(connection);
+        availableConnections.offer(connection);
+        notifyAll();
     }
 
-    private void closeConnection(Connection connection) {
+    public void closeConnection(Connection connection) {
         try {
             connection.close();
         } catch (SQLException e) {
-            // ignore
-        }
-    }
-
-    public synchronized void release(Connection connection) {
-        if (usedConnections.remove(connection)) {
-            if (isValid(connection)) {
-                availableConnections.add(connection);
-            } else {
-                closeConnection(connection);
-            }
+            throw new SQLRuntimeException("Fail to close connection", e);
         }
     }
 
