@@ -11,6 +11,16 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class DBConnectionPool {
+    private static class ConnectionInfo {
+        public final Connection connection;
+        public final long timestamp;
+
+        public ConnectionInfo(Connection connection, long timestamp) {
+            this.connection = connection;
+            this.timestamp = timestamp;
+        }
+    }
+
     private static final int DEFAULT_MIN_POOL_SIZE = 1;
     private static final int DEFAULT_MAX_POOL_SIZE = 2;
     private static final int DEFAULT_WAIT_TIMEOUT = 5;
@@ -22,7 +32,7 @@ public class DBConnectionPool {
     private final int maxPoolSize;
     private final long waitTimeout;
     private final long maxIdleTime;
-    private final Queue<Connection> availableConnections;
+    private final Queue<ConnectionInfo> availableConnections;
     private final Set<Connection> usedConnections;
     private int activeConnectionCount;
 
@@ -47,8 +57,7 @@ public class DBConnectionPool {
 
     private synchronized void initializePool() {
         while (activeConnectionCount < minPoolSize) {
-            Connection connection = createConnection();
-            availableConnections.add(connection);
+            availableConnections.add(new ConnectionInfo(createConnection(), System.currentTimeMillis()));
             activeConnectionCount++;
         }
     }
@@ -65,8 +74,7 @@ public class DBConnectionPool {
 
     public synchronized Connection get() throws SQLException, InterruptedException {
         if (availableConnections.isEmpty() && activeConnectionCount < maxPoolSize) {
-            Connection connection = createConnection();
-            availableConnections.add(connection);
+            availableConnections.add(new ConnectionInfo(createConnection(), System.currentTimeMillis()));
             activeConnectionCount++;
         }
 
@@ -75,14 +83,24 @@ public class DBConnectionPool {
 
         while (availableConnections.isEmpty()) {
             wait(remaining);
-
             remaining = waitTimeout - (System.currentTimeMillis() - start);
             if (remaining <= 0) {
                 throw new SQLTimeoutException("Timeout while waiting for a connection from the pool");
             }
         }
 
-        Connection connection = availableConnections.poll();
+        ConnectionInfo connectionInfo = availableConnections.poll();
+        long idleTime = System.currentTimeMillis() - connectionInfo.timestamp;
+        if (idleTime > maxIdleTime) {
+            closeConnection(connectionInfo.connection);
+            connectionInfo = null;
+        }
+
+        if (connectionInfo == null) {
+            return get();
+        }
+
+        Connection connection = connectionInfo.connection;
         usedConnections.add(connection);
         return connection;
     }
@@ -90,7 +108,7 @@ public class DBConnectionPool {
 
     public synchronized void release(Connection connection) {
         usedConnections.remove(connection);
-        availableConnections.offer(connection);
+        availableConnections.offer(new ConnectionInfo(connection, System.currentTimeMillis()));
         notifyAll();
     }
 
@@ -103,8 +121,8 @@ public class DBConnectionPool {
     }
 
     public synchronized void closeAll() {
-        for (Connection connection : availableConnections) {
-            closeConnection(connection);
+        for (ConnectionInfo connectionInfo : availableConnections) {
+            closeConnection(connectionInfo.connection);
         }
         availableConnections.clear();
         for (Connection connection : usedConnections) {
