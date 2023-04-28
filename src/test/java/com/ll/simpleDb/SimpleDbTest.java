@@ -342,8 +342,7 @@ class SimpleDbTest {
                         .append(", title = ?", "제목 new")
                         .append(", body = ?", "내용 new");
 
-                long newId = sql.insert(); // AUTO_INCREMENT 에 의해서 생성된 주키 리턴
-
+                long newId = sql.insert();
                 assertThat(newId).isGreaterThan(0);
             });
             threads[i].start();
@@ -354,11 +353,6 @@ class SimpleDbTest {
         }
 
         Sql sql = simpleDb.genSql();
-        /*
-        == rawSql ==
-        SELECT COUNT(*)
-        FROM article
-        */
         sql.append("SELECT COUNT(*)")
                 .append("FROM article");
 
@@ -380,8 +374,7 @@ class SimpleDbTest {
                         .append(", title = ?", "제목 new")
                         .append(", body = ?", "내용 new");
 
-                long newId = sql.insert(); // AUTO_INCREMENT 에 의해서 생성된 주키 리턴
-
+                long newId = sql.insert();
                 assertThat(newId).isGreaterThan(0);
             });
             threads[i].start();
@@ -392,16 +385,103 @@ class SimpleDbTest {
         }
 
         Sql sql = simpleDb.genSql();
-        /*
-        == rawSql ==
-        SELECT COUNT(*)
-        FROM article
-        */
         sql.append("SELECT COUNT(*)")
                 .append("FROM article");
 
         long count = sql.selectLong();
         System.out.println("count(): " + count);
-        assertThat(count).isGreaterThan(99);
+        assertThat(count).isGreaterThan(199);
+    }
+
+    @Test
+    @DisplayName("Connection Expire Test")
+    void threadsInsertsMoreWithDelay() throws InterruptedException {
+        Sql sql = simpleDb.genSql();
+        sql.append("INSERT INTO article")
+                .append("SET createdDate = NOW()")
+                .append(", modifiedDate = NOW()")
+                .append(", title = ?", "제목 new")
+                .append(", body = ?", "내용 new");
+
+        long newId1 = sql.insert();
+        assertThat(newId1).isGreaterThan(0);
+
+
+        Thread.sleep(11000);
+
+        sql = simpleDb.genSql();
+        sql.append("INSERT INTO article")
+                .append("SET createdDate = NOW()")
+                .append(", modifiedDate = NOW()")
+                .append(", title = ?", "제목 new2")
+                .append(", body = ?", "내용 new2");
+
+        long newId2 = sql.insert();
+        assertThat(newId2).isGreaterThan(0);
+
+        sql = simpleDb.genSql();
+        sql.append("SELECT COUNT(*)")
+                .append("FROM article");
+
+        long count = sql.selectLong();
+        System.out.println("count(): " + count);
+        assertThat(count).isGreaterThan(2);
+    }
+
+    @Test
+    @DisplayName("Connection Expire Test with 100 threads at once")
+    void concurrentInsertions() throws InterruptedException {
+        Thread[] threads1 = new Thread[100];
+        for (int i = 0; i < threads1.length; i++) {
+            threads1[i] = new Thread(() -> {
+                Sql sql = simpleDb.genSql();
+                sql.append("INSERT INTO article")
+                        .append("SET createdDate = NOW()")
+                        .append(", modifiedDate = NOW()")
+                        .append(", title = ?", "제목 new")
+                        .append(", body = ?", "내용 new");
+
+                long newId = sql.insert();
+
+                assertThat(newId).isGreaterThan(0);
+            });
+            threads1[i].start();
+        }
+
+
+        Thread.sleep(11000);
+
+        Thread[] threads2 = new Thread[100];
+        for (int i = 0; i < threads2.length; i++) {
+            threads2[i] = new Thread(() -> {
+                Sql sql = simpleDb.genSql();
+                sql.append("INSERT INTO article")
+                        .append("SET createdDate = NOW()")
+                        .append(", modifiedDate = NOW()")
+                        .append(", title = ?", "제목 new")
+                        .append(", body = ?", "내용 new");
+
+                long newId = sql.insert();
+
+                assertThat(newId).isGreaterThan(0);
+            });
+            threads2[i].start();
+        }
+
+        for (Thread thread : threads1) {
+            thread.join();
+        }
+
+        for (Thread thread : threads2) {
+            thread.join();
+        }
+
+        Sql sql = simpleDb.genSql();
+        sql.append("SELECT COUNT(*)")
+                .append("FROM article");
+
+        long count = sql.selectLong();
+        System.out.println("count(): " + count);
+        assertThat(count).isGreaterThan(199);
     }
 }
