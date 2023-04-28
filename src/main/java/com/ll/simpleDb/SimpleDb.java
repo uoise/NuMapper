@@ -3,7 +3,6 @@ package com.ll.simpleDb;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 public class SimpleDb {
     private final DBConnectionPool dbConnectionPool;
@@ -34,32 +33,21 @@ public class SimpleDb {
         this.devMode = devMode;
     }
 
-    public void run(String queryString) {
-        Statement statement;
-        try {
-            connection = dbConnectionPool.get();
-            statement = connection.createStatement();
-            boolean result = statement.execute(queryString);
-        } catch (SQLException | InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            dbConnectionPool.release(connection);
-        }
-    }
-
-
     public void run(String queryString, Object... args) {
-        PreparedStatement pstmt;
         try {
-            connection = dbConnectionPool.get();
-            pstmt = connection.prepareStatement(queryString);
-            int idx = 0;
-            for (Object o : args) pstmt.setObject(++idx, o);
-            int rowCount = pstmt.executeUpdate();
+            connection = dbConnectionPool.getConnection();
+            try (PreparedStatement pStmt = connection.prepareStatement(queryString)) {
+                pStmt.setQueryTimeout(queryTimeout);
+                int idx = 0;
+                for (Object o : args) pStmt.setObject(++idx, o);
+                pStmt.executeUpdate();
+            } catch (SQLException e) {
+                System.out.println("SQL Exception: Failed to get Statement");
+            }
         } catch (SQLException | InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         } finally {
-            dbConnectionPool.release(connection);
+            dbConnectionPool.releaseConnection(connection);
         }
     }
 
@@ -68,6 +56,6 @@ public class SimpleDb {
     }
 
     public void close() {
-        dbConnectionPool.closeAll();
+        dbConnectionPool.closeAllConnections();
     }
 }
