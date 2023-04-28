@@ -11,14 +11,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class DBConnectionPool {
-    private static class ConnectionInfo {
-        public final Connection connection;
-        public final long timestamp;
-
-        public ConnectionInfo(Connection connection, long timestamp) {
-            this.connection = connection;
-            this.timestamp = timestamp;
-        }
+    private record ConnectionInfo(Connection connection, long timestamp) {
     }
 
     private static final int DEFAULT_MIN_POOL_SIZE = 1;
