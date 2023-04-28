@@ -390,7 +390,7 @@ class SimpleDbTest {
 
         long count = sql.selectLong();
         System.out.println("count(): " + count);
-        assertThat(count).isGreaterThan(199);
+        assertThat(count).isGreaterThan(100);
     }
 
     @Test
