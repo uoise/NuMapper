@@ -25,6 +25,7 @@ public class Sql {
         try {
             connection = dbConnectionPool.getConnection();
         } catch (SQLException | InterruptedException e) {
+            dbConnectionPool.releaseConnection(connection);
             throw new SQLRuntimeException("setConnection fail", e);
         }
     }

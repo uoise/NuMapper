@@ -128,6 +128,7 @@ public class DBConnectionPool {
 
     private void closeConnection(Connection connection) {
         try {
+            usedConnections.remove(connection);
             connection.close();
         } catch (SQLException e) {
             throw new RuntimeException("Fail to close connection", e);
