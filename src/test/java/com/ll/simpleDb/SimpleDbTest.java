@@ -32,7 +32,7 @@ class SimpleDbTest {
     }
 
     @AfterAll
-    public void afterAll(){
+    public void afterAll() {
         simpleDb.close();
         System.out.println("::: SimpleDB Test Done :::");
     }
@@ -327,5 +327,81 @@ class SimpleDbTest {
         List<Long> foundIds = sql.selectLongs();
 
         assertThat(foundIds).isEqualTo(ids);
+    }
+
+    @Test
+    @DisplayName("10 Thread at once")
+    void threadsInserts() throws InterruptedException {
+        Thread[] threads = new Thread[100];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(() -> {
+                Sql sql = simpleDb.genSql();
+                sql.append("INSERT INTO article")
+                        .append("SET createdDate = NOW()")
+                        .append(", modifiedDate = NOW()")
+                        .append(", title = ?", "제목 new")
+                        .append(", body = ?", "내용 new");
+
+                long newId = sql.insert(); // AUTO_INCREMENT 에 의해서 생성된 주키 리턴
+
+                assertThat(newId).isGreaterThan(0);
+            });
+            threads[i].start();
+        }
+
+        for (Thread thread : threads) {
+            thread.join();
+        }
+
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT COUNT(*)
+        FROM article
+        */
+        sql.append("SELECT COUNT(*)")
+                .append("FROM article");
+
+        long count = sql.selectLong();
+        System.out.println("count(): " + count);
+        assertThat(count).isGreaterThan(10);
+    }
+
+    @Test
+    @DisplayName("100 Thread at once")
+    void threadsInsertsMore() throws InterruptedException {
+        Thread[] threads = new Thread[100];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(() -> {
+                Sql sql = simpleDb.genSql();
+                sql.append("INSERT INTO article")
+                        .append("SET createdDate = NOW()")
+                        .append(", modifiedDate = NOW()")
+                        .append(", title = ?", "제목 new")
+                        .append(", body = ?", "내용 new");
+
+                long newId = sql.insert(); // AUTO_INCREMENT 에 의해서 생성된 주키 리턴
+
+                assertThat(newId).isGreaterThan(0);
+            });
+            threads[i].start();
+        }
+
+        for (Thread thread : threads) {
+            thread.join();
+        }
+
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT COUNT(*)
+        FROM article
+        */
+        sql.append("SELECT COUNT(*)")
+                .append("FROM article");
+
+        long count = sql.selectLong();
+        System.out.println("count(): " + count);
+        assertThat(count).isGreaterThan(99);
     }
 }
