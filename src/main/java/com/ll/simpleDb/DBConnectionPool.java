@@ -67,6 +67,7 @@ public class DBConnectionPool {
         if (activeConnectionCount.get() < maxPoolSize) {
             Connection connection = createConnection();
             activeConnectionCount.incrementAndGet();
+            usedConnections.offer(connection);
             return new ConnectionInfo(connection);
         }
         notifyAll();
@@ -91,9 +92,7 @@ public class DBConnectionPool {
 
     private Connection createConnection() {
         try {
-            Connection connection = DriverManager.getConnection(url, username, password);
-            usedConnections.offer(connection);
-            return connection;
+            return DriverManager.getConnection(url, username, password);
         } catch (SQLException e) {
             throw new RuntimeException("Create connection failed", e);
         }
