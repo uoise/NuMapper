@@ -60,16 +60,25 @@ public class DBConnectionPool {
         }
     }
 
+    private boolean isExpired(ConnectionInfo connectionInfo) {
+        long idleTime = System.currentTimeMillis() - connectionInfo.timestamp;
+        return idleTime > maxIdleTime;
+    }
+
     private synchronized ConnectionInfo getConnectionFromPool() {
-        if (!availableConnections.isEmpty()) {
-            return availableConnections.poll();
+        while (!availableConnections.isEmpty()) {
+            ConnectionInfo connectionInfo = availableConnections.poll();
+            if (isExpired(connectionInfo)) closeConnection(connectionInfo.connection);
+            else return connectionInfo;
         }
+
         if (activeConnectionCount.get() < maxPoolSize) {
             Connection connection = createConnection();
             activeConnectionCount.incrementAndGet();
             usedConnections.offer(connection);
             return new ConnectionInfo(connection);
         }
+
         notifyAll();
 
         return null;
@@ -113,13 +122,6 @@ public class DBConnectionPool {
             }
         }
 
-        long idleTime = System.currentTimeMillis() - connectionInfo.timestamp;
-        if (idleTime > maxIdleTime) {
-            closeConnection(connectionInfo.connection);
-            System.out.println("connection expired");
-            return getConnection();
-        }
-
         Connection connection = connectionInfo.connection;
         synchronized (this) {
             usedConnections.offer(connection);
@@ -135,6 +137,7 @@ public class DBConnectionPool {
     private void closeConnection(Connection connection) {
         try {
             usedConnections.remove(connection);
+            activeConnectionCount.decrementAndGet();
             connection.close();
         } catch (SQLException e) {
             throw new RuntimeException("Fail to close connection", e);
