@@ -84,8 +84,9 @@ public class DBConnectionPool {
         return null;
     }
 
-    private ConnectionInfo waitForConnection(long remaining) throws InterruptedException, SQLTimeoutException {
-        long start = System.currentTimeMillis();
+    private ConnectionInfo waitForConnection() throws InterruptedException, SQLTimeoutException {
+        final long start = System.currentTimeMillis();
+        long remaining = waitTimeout;
         ConnectionInfo connectionInfo;
         while ((connectionInfo = getConnectionFromPool()) == null) {
             synchronized (this) {
@@ -114,7 +115,7 @@ public class DBConnectionPool {
                 connectionInfo = getConnectionFromPool();
                 if (connectionInfo == null) {
                     try {
-                        connectionInfo = waitForConnection(waitTimeout);
+                        connectionInfo = waitForConnection();
                     } catch (SQLTimeoutException e) {
                         // ignore exception
                     }
