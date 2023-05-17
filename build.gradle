@@ -22,6 +22,10 @@ dependencies {
 
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.14.2'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.14.2' // LocalDatetime 지원
+
+    compileOnly 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+
+    implementation 'org.eclipse.jetty:apache-jstl:11.0.0'
 }
 
 test {
